@@ -1,0 +1,27 @@
+{
+  "name": "vendororg/db-autofake",
+  "description": "Artisan command to auto-fill existing DB tables with fake data (no factories/seeders).",
+  "type": "library",
+  "license": "MIT",
+  "keywords": ["laravel", "artisan", "seed", "faker", "database", "mysql", "mariadb"],
+  "require": {
+    "php": ">=8.1",
+    "illuminate/support": "^10.0|^11.0"
+  },
+  "suggest": {
+    "fakerphp/faker": "بيانات وهمية أكثر واقعية",
+    "doctrine/dbal": "استقراء أنواع الأعمدة وطولها عبر محركات قواعد بيانات متعددة"
+  },
+  "autoload": {
+    "psr-4": {
+      "VendorOrg\\DbAutofake\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "VendorOrg\\DbAutofake\\DbAutofakeServiceProvider"
+      ]
+    }
+  }
+}
