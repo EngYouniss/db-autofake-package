@@ -26,10 +26,13 @@ class ValueGenerator
         $n = strtolower($name);
 
         // حقول شائعة تُملأ في الأمر حسب الكونفيج
-        if (in_array($n, ['created_at','updated_at','deleted_at'], true)) {
+        if (in_array($n, ['created_at', 'updated_at', 'deleted_at'], true)) {
             return '__SKIP__';
         }
-
+        // أي عمود ينتهي بـ _at اعتبره تاريخ/وقت
+        if (preg_match('/_at$/', $n)) {
+            return $this->byType('datetime', null);
+        }
         // حسب اسم العمود (إن وُجد Faker)
         if ($this->useFaker) {
             if (preg_match('/email/', $n)) return $this->faker->unique()->safeEmail();
@@ -63,13 +66,13 @@ class ValueGenerator
     {
         if ($this->useFaker) {
             return match ($type) {
-                'integer','bigint','smallint'           => $this->faker->numberBetween(0, 1_000_000),
-                'decimal','float'                        => $this->faker->randomFloat(2, 0, 999999),
+                'integer', 'bigint', 'smallint'           => $this->faker->numberBetween(0, 1_000_000),
+                'decimal', 'float'                        => $this->faker->randomFloat(2, 0, 999999),
                 'boolean'                                => $this->faker->boolean(),
                 'date'                                   => $this->faker->date(),
-                'datetime','datetimetz','timestamp'      => $this->faker->dateTime(),
+                'datetime', 'datetimetz', 'timestamp'      => $this->faker->dateTime(),
                 'time'                                   => $this->faker->time(),
-                'json'                                   => json_encode(['k'=>$this->faker->word(),'v'=>$this->faker->sentence()], JSON_UNESCAPED_UNICODE),
+                'json'                                   => json_encode(['k' => $this->faker->word(), 'v' => $this->faker->sentence()], JSON_UNESCAPED_UNICODE),
                 'text'                                   => $this->faker->paragraph(),
                 default                                  => $this->limit($this->faker->sentence(3), $length),
             };
@@ -83,9 +86,9 @@ class ValueGenerator
                 return random_int(0, 1_000_000);
             case 'decimal':
             case 'float':
-                return (float) number_format(mt_rand(0, 999999) + mt_rand()/mt_getrandmax(), 2, '.', '');
+                return (float) number_format(mt_rand(0, 999999) + mt_rand() / mt_getrandmax(), 2, '.', '');
             case 'boolean':
-                return (bool) random_int(0,1);
+                return (bool) random_int(0, 1);
             case 'date':
                 return date('Y-m-d');
             case 'datetime':
@@ -95,7 +98,7 @@ class ValueGenerator
             case 'time':
                 return date('H:i:s');
             case 'json':
-                return json_encode(['k'=>'val','n'=>random_int(1,9999)], JSON_UNESCAPED_UNICODE);
+                return json_encode(['k' => 'val', 'n' => random_int(1, 9999)], JSON_UNESCAPED_UNICODE);
             case 'text':
                 return $this->limit(bin2hex(random_bytes(64)), $length);
             default:

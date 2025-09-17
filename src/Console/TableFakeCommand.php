@@ -12,15 +12,15 @@ use VendorOrg\DbAutofake\Support\ValueGenerator;
 class TableFakeCommand extends Command
 {
     protected $signature = 'table:fake
-        {table : اسم الجدول}
-        {--rows=50 : عدد الصفوف}
-        {--truncate : تفريغ الجدول قبل الإدراج}
-        {--locale= : لغة Faker إن وُجد}
-        {--nullable= : نسبة ترك الحقول Nullable (0..1)}
-        {--chunk= : حجم الدفعة}
-        {--seed= : تثبيت العشوائية}';
+        {table : Target table name}
+        {--rows=50 : Number of rows to insert}
+        {--truncate : Truncate the table before inserting}
+        {--locale= : Faker locale if available (e.g. en_US, ar_SA)}
+        {--nullable= : Probability (0..1) to leave nullable columns as NULL}
+        {--chunk= : Insert batch size}
+        {--seed= : Random seed to make data deterministic}';
 
-    protected $description = 'يملأ أي جدول قائم ببيانات وهمية اعتمادًا على أعمدته. الاعتمادات Faker/DBAL اختيارية.';
+    protected $description = 'Fill an existing table with fake data based on its columns. Faker/DBAL are optional.';
 
     public function handle()
     {
@@ -29,19 +29,19 @@ class TableFakeCommand extends Command
         $truncate  = (bool) $this->option('truncate');
 
         if (!Schema::hasTable($table)) {
-            $this->error("الجدول {$table} غير موجود.");
+            $this->error("Table {$table} does not exist.");
             return self::FAILURE;
         }
 
         $cfg      = config('db_autofake');
-        $locale   = $this->option('locale')   ?: ($cfg['locale'] ?? 'ar_SA');
+        $locale   = $this->option('locale')   ?: ($cfg['locale'] ?? 'en_US');
         $nullable = $this->option('nullable') !== null ? (float)$this->option('nullable') : ($cfg['nullable_probability'] ?? 0.1);
         $chunk    = $this->option('chunk')    !== null ? (int)$this->option('chunk')       : ($cfg['chunk'] ?? 500);
         $seed     = $this->option('seed')     !== null ? (int)$this->option('seed')        : null;
 
         if ($truncate) {
             DB::table($table)->truncate();
-            $this->info("تم تفريغ {$table}.");
+            $this->info("Truncated {$table}.");
         }
 
         $columns  = SchemaInspector::getColumns($table);
@@ -59,24 +59,32 @@ class TableFakeCommand extends Command
                 $lname = strtolower($name);
                 if (in_array($lname, $ignore, true)) continue;
 
-                // timestamps من الكونفيج
+                // Timestamps/known columns from config
                 if (isset($cfg['timestamps'][$lname])) {
                     $mode = $cfg['timestamps'][$lname];
                     if ($mode === 'now')   { $row[$name] = now(); }
                     elseif ($mode === 'null') { $row[$name] = null; }
+                    // 'skip' means do nothing
                     continue;
                 }
 
-                // nullable نسبة
+                // SAFETY: columns ending with _at are treated as datetime
+                if (preg_match('/_at$/', $lname)) {
+                    $row[$name] = now();
+                    continue;
+                }
+
+                // Nullable probability
                 if ($c->nullable && $this->chance($nullable)) {
                     $row[$name] = null;
                     continue;
                 }
 
-                // توليد
+                // Generate value
                 $val = $gen->byColumn($name, $c->type, $c->length);
                 if ($val === '__SKIP__') continue;
 
+                // Respect column length
                 if (is_string($val) && $c->length && $c->length > 0) {
                     $val = mb_substr($val, 0, $c->length);
                 }
@@ -84,6 +92,7 @@ class TableFakeCommand extends Command
                 $row[$name] = $val;
             }
 
+            // Only keep valid keys
             $row = Arr::only($row, $colNames);
             if (!empty($row)) $batch[] = $row;
 
@@ -99,7 +108,7 @@ class TableFakeCommand extends Command
             $inserted += count($batch);
         }
 
-        $this->info("تم إدراج {$inserted} صف(وف) في {$table}.");
+        $this->info("Inserted {$inserted} row(s) into {$table}.");
         return self::SUCCESS;
     }
 
